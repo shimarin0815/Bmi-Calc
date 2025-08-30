@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BMI Calc</title>
+  <meta name="description" content="身長と体重からBMIを自動計算。履歴、アドバイス、ローカル保存付きのシンプルな健康ツール。" />
+  <meta name="theme-color" content="#7c5cff" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg: #0f1220;
+      --bg-2: #11152a;
+      --card: rgba(255,255,255,0.08);
+      --card-2: rgba(255,255,255,0.06);
+      --text: #e8e9f3;
+      --muted: #b7b9d1;
+      --accent: #7c5cff;
+      --accent-2: #64d4ff;
+      --good: #2ecc71;
+      --warn: #f1c40f;
+      --bad: #ff6b6b;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg: #f7f7fb;
+        --bg-2: #ffffff;
+        --card: rgba(0,0,0,0.04);
+        --card-2: rgba(0,0,0,0.06);
+        --text: #151624;
+        --muted: #5a5d7a;
+        --shadow: 0 10px 24px rgba(29,39,76,.12);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text); background:
+        radial-gradient(1200px 800px at 90% -10%, rgba(124,92,255,.15), transparent 60%),
+        radial-gradient(1000px 700px at -10% 110%, rgba(100,212,255,.15), transparent 55%),
+        linear-gradient(0deg,var(--bg),var(--bg));
+      font-family: Inter, "Noto Sans JP", system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+      line-height:1.5;
+    }
+    .wrap{max-width:980px; margin-inline:auto; padding:32px 20px 54px}
+    header{display:flex; gap:16px; align-items:center; justify-content:space-between; margin-bottom:22px}
+    .app-title{display:flex; align-items:center; gap:12px}
+    .logo{width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow: var(--shadow); position:relative}
+    .logo::after{content:""; position:absolute; inset:4px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,.12)); mix-blend-mode: overlay;}
+    h1{font-size: clamp(20px, 3.2vw, 28px); margin:0; letter-spacing:.3px}
+    .subtitle{color:var(--muted); font-size:14px}
+
+    .grid{display:grid; grid-template-columns: 1.1fr .9fr; gap:18px}
+    @media (max-width: 880px){.grid{grid-template-columns:1fr;}}
+
+    .card{background:var(--card); border:1px solid rgba(255,255,255,.08); backdrop-filter: blur(8px); border-radius:var(--radius); box-shadow: var(--shadow)}
+    .card > .hd{padding:16px 18px; border-bottom: 1px solid var(--card-2); display:flex; align-items:center; justify-content:space-between}
+    .card .hd h2{margin:0; font-size:16px}
+    .card .bd{padding:18px}
+
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
+    .field{display:flex; flex-direction:column; gap:8px}
+    label{font-weight:600}
+    .input{display:flex; align-items:center; gap:10px; background: var(--bg-2); border:1px solid var(--card-2); padding:10px 12px; border-radius:12px}
+    input[type=number]{all:unset; width:100%; font-variant-numeric: tabular-nums;}
+    .unit{opacity:.7}
+
+    .tips{margin-top:10px; color:var(--muted); font-size:13px}
+
+    .result{
+      display:grid; gap:14px; align-items:start
+    }
+    .result-line{display:flex; align-items:center; justify-content:space-between; gap:8px}
+    .bmi-value{font-size: clamp(22px, 4.2vw, 34px); font-weight:800; letter-spacing:.5px}
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-weight:700; font-size:13px}
+    .chip small{font-weight:600; opacity:.8}
+
+    .meter{position:relative; height:16px; background: linear-gradient(90deg,#78a7ff 0 18.5%, #38d996 18.5% 25%, #ffcf5b 25% 30%, #ff8a8a 30% 100%); border-radius:999px; outline:1px solid var(--card-2)}
+    .meter .thumb{position:absolute; top:-6px; width:2px; height:28px; background:var(--text); left:0; transform:translateX(-1px); border-radius:1px; box-shadow: 0 0 0 2px rgba(0,0,0,.15)}
+    .meter .ticks{position:absolute; inset:0; display:flex; justify-content:space-between; pointer-events:none}
+    .meter .ticks::before, .meter .ticks::after{content:""}
+    .tick{width:2px; background:rgba(255,255,255,.25)}
+    .legend{display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--muted)}
+    .legend span{display:inline-flex; align-items:center; gap:6px}
+    .sq{width:10px; height:10px; border-radius:2px; display:inline-block}
+
+    .btns{display:flex; gap:10px; flex-wrap:wrap}
+    button{cursor:pointer; border:none; border-radius:12px; padding:10px 14px; font-weight:700}
+    .primary{background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:white;}
+    .ghost{background:transparent; color:var(--text); border:1px solid var(--card-2)}
+
+    .history{display:grid; gap:10px}
+    .history .item{display:grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap:10px; align-items:center; padding:10px 12px; border-radius:12px; background: var(--bg-2); border:1px solid var(--card-2)}
+    .history .item small{color:var(--muted)}
+    @media (max-width:720px){
+      .history .item{grid-template-columns: 1fr; align-items:start}
+    }
+
+    .advice{display:grid; gap:10px}
+    .advice ul{margin:0; padding-left:1.1em}
+    .advice li{margin:.2em 0}
+
+    footer{margin-top:22px; color:var(--muted); font-size:12px}
+    .muted{color:var(--muted)}
+
+    @media (prefers-reduced-motion: no-preference){
+      .card{transition: transform .2s ease}
+      .card:hover{transform: translateY(-2px)}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="app-title">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>BMI Calc</h1>
+          <div class="subtitle">身長と体重からBMIを自動計算。履歴・アドバイス付きで毎日使える。</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid" role="main">
+      <!-- Left: inputs & result -->
+      <section class="card" aria-labelledby="calc-hd">
+        <div class="hd"><h2 id="calc-hd">計算</h2></div>
+        <div class="bd">
+          <div class="row" style="margin-bottom:14px">
+            <div class="field">
+              <label for="height">身長 <small class="muted">(cm)</small></label>
+              <div class="input"><input id="height" type="number" inputmode="decimal" min="80" max="250" step="0.1" placeholder="例: 165" aria-describedby="h-help"/><span class="unit">cm</span></div>
+              <div id="h-help" class="tips">80〜250のあいだで入力</div>
+            </div>
+            <div class="field">
+              <label for="weight">体重 <small class="muted">(kg)</small></label>
+              <div class="input"><input id="weight" type="number" inputmode="decimal" min="20" max="300" step="0.1" placeholder="例: 55.5" aria-describedby="w-help"/><span class="unit">kg</span></div>
+              <div id="w-help" class="tips">20〜300のあいだで入力</div>
+            </div>
+          </div>
+
+          <div class="result" aria-live="polite">
+            <div class="result-line">
+              <div>
+                <div class="muted">あなたのBMI</div>
+                <div class="bmi-value" id="bmi-value">—</div>
+              </div>
+              <div>
+                <div id="bmi-chip" class="chip" style="background:var(--card-2)">カテゴリ: <small>—</small></div>
+              </div>
+            </div>
+            <div>
+              <div class="meter" aria-label="BMIメーター (やせ/標準/肥満)">
+                <div class="ticks" aria-hidden="true">
+                  <div class="tick" style="margin-left:18.5%"></div>
+                  <div class="tick" style="margin-left:25%"></div>
+                  <div class="tick" style="margin-left:30%"></div>
+                </div>
+                <div id="thumb" class="thumb" style="left:0"></div>
+              </div>
+              <div class="legend" aria-hidden="true">
+                <span><i class="sq" style="background:#78a7ff"></i>やせ &lt;18.5</span>
+                <span><i class="sq" style="background:#38d996"></i>標準 18.5–24.9</span>
+                <span><i class="sq" style="background:#ffcf5b"></i>肥満(1度) 25–29.9</span>
+                <span><i class="sq" style="background:#ff8a8a"></i>肥満(2–4度) 30+</span>
+              </div>
+            </div>
+
+            <div class="advice">
+              <strong>フィードバック</strong>
+              <div id="feedback" class="muted">数値を入れるとアドバイスが表示されます。</div>
+            </div>
+
+            <div class="btns">
+              <button id="save-btn" class="primary" disabled>この結果を記録する</button>
+              <button id="reset-btn" class="ghost" title="入力と結果をリセット">リセット</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: history & notes -->
+      <section class="card" aria-labelledby="hist-hd">
+        <div class="hd">
+          <h2 id="hist-hd">計算履歴</h2>
+          <div>
+            <button id="clear-history" class="ghost" title="履歴をすべて消す">履歴をクリア</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div id="history" class="history" aria-live="polite"></div>
+          <div class="tips">※ 履歴・入力値はこの端末の <strong>LocalStorage</strong> に保存されます。ページを閉じても残りますが、他の人には送信されません。</div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <div>基準: 日本肥満学会の区分(18.5未満: 低体重 / 18.5–25未満: 普通体重 / 25以上: 肥満1–4度)。このツールは目安であり、医療的判断は医師にご相談ください。</div>
+    </footer>
+  </div>
+
+  <script>
+    ;(() => {
+      const $ = (sel) => document.querySelector(sel)
+      const heightEl = $('#height')
+      const weightEl = $('#weight')
+      const bmiValueEl = $('#bmi-value')
+      const chipEl = $('#bmi-chip')
+      const feedbackEl = $('#feedback')
+      const thumbEl = $('#thumb')
+      const saveBtn = $('#save-btn')
+      const resetBtn = $('#reset-btn')
+      const clearHistoryBtn = $('#clear-history')
+      const historyEl = $('#history')
+
+      const LS_KEYS = {
+        last: 'bmiCalc:lastInputs',
+        history: 'bmiCalc:history'
+      }
+
+      const readLS = (k, fallback) => {
+        try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback } catch { return fallback }
+      }
+      const writeLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
+
+      function round(n, d=1){ const p = 10**d; return Math.round(n*p)/p }
+
+      function computeBMI(cm, kg){
+        if(!cm || !kg || cm <= 0 || kg <= 0) return null
+        const m = cm / 100
+        return kg / (m*m)
+      }
+
+      function classify(bmi){
+        if(bmi == null) return {label:'—', grade:null, color:'var(--card-2)', tips:[], mood:'', stress:''}
+        // 基準: 日本肥満学会
+        if(bmi < 18.5) return {
+          label:'やせ', grade:'低体重', color:'#78a7ff', mood:'やさしくケア',
+          tips:[
+            '主食+主菜+副菜を3食しっかり。間食はヨーグルトやナッツ。',
+            '軽い筋トレ(スクワット/プランク)で食べた栄養を「体づくり」に。',
+            '体調に不安があれば無理をせず専門家に相談を。'
+          ],
+          stress:'深呼吸を4回。吸う4秒→止める4秒→吐く4秒。肩の力をストンと落とす。'
+        }
+        if(bmi < 25) return {
+          label:'標準', grade:'普通体重', color:'#38d996', mood:'いい感じ',
+          tips:[
+            '今のリズムをキープ。毎日10分の散歩やストレッチを習慣に。',
+            'たんぱく質+野菜を意識。甘い飲み物は「たまに」に。',
+            '睡眠は7時間めざし、週1回は「からだを休める日」を。'
+          ],
+          stress:'1分だけ目を閉じて呼吸。吸うより長く吐くとリラックス。'
+        }
+        if(bmi < 30) return {
+          label:'肥満(1度)', grade:'Overweight', color:'#ffcf5b', mood:'やさしく見直し',
+          tips:[
+            'ゆるく-200〜-300kcal/日を意識(ごはん小盛り/おかわり控えめ)。',
+            '週150分の中強度運動(速歩、サイクリング)を小分けに。',
+            '夜食・だらだら食べを控え、21時以降はノンカロリー飲料に。'
+          ],
+          stress:'60秒の首まわし+肩ストレッチ。画面から目を離す。'
+        }
+        if(bmi < 35) return {
+          label:'肥満(2度)', grade:'Obesity class I', color:'#ff9b6b', mood:'安全第一',
+          tips:[
+            '体調に合わせて無理のない活動量アップから。',
+            '食事は「ゆっくり・よく噛む」。外食はスープ・サラダを先に。',
+            '必要に応じて医師や栄養士に相談。'
+          ],
+          stress:'仕事の合間に3回伸びをして、目と肩をリセット。'
+        }
+        if(bmi < 40) return {
+          label:'肥満(3度)', grade:'Obesity class II', color:'#ff7a7a', mood:'専門家と伴走',
+          tips:[
+            'まずは睡眠と体調の安定を優先。',
+            '体への負担が少ない運動(プール/椅子スクワット/ゆっくり散歩)。',
+            '専門家への相談を検討。生活に合う続け方を見つける。'
+          ],
+          stress:'呼吸4-6(吸う4秒/吐く6秒)を5回。心拍を落ち着ける。'
+        }
+        return {
+          label:'肥満(4度)', grade:'Obesity class III', color:'#ff6b6b', mood:'医療と連携',
+          tips:[
+            '医療専門家と相談しながら、焦らず安全に体調管理を。',
+            '日常の小さな積み重ね(こまめに立つ/水分/睡眠の質)。',
+          ],
+          stress:'呼吸+肩ストレッチで首と背中の緊張をほどく。'
+        }
+      }
+
+      function bmiToPercentPos(bmi){
+        // 0〜50を想定範囲とし、%へ変換
+        const clamped = Math.max(0, Math.min(50, bmi ?? 0))
+        return (clamped / 50) * 100
+      }
+
+      function update(){
+        const h = parseFloat(heightEl.value)
+        const w = parseFloat(weightEl.value)
+        const bmi = computeBMI(h, w)
+        writeLS(LS_KEYS.last, { h: heightEl.value, w: weightEl.value })
+
+        if(bmi == null || !isFinite(bmi)){
+          bmiValueEl.textContent = '—'
+          chipEl.style.background = 'var(--card-2)'
+          chipEl.innerHTML = 'カテゴリ: <small>—</small>'
+          feedbackEl.textContent = '数値を入れるとアドバイスが表示されます。'
+          thumbEl.style.left = '0%'
+          saveBtn.disabled = true
+          return
+        }
+
+        const value = round(bmi, 1)
+        const cls = classify(bmi)
+        bmiValueEl.textContent = value
+        chipEl.style.background = cls.color
+        chipEl.innerHTML = `${cls.label} <small>${cls.grade ?? ''}</small>`
+        feedbackEl.innerHTML = `
+          <div style="margin-bottom:6px">今は <strong>${cls.label}</strong> のゾーン。<span class="muted">(${cls.mood})</span></div>
+          <ul>${cls.tips.map(t=>`<li>${t}</li>`).join('')}</ul>
+          <div class="tips">仕事中のストレス対策: ${cls.stress}</div>
+        `
+        thumbEl.style.left = bmiToPercentPos(bmi) + '%'
+        saveBtn.disabled = false
+      }
+
+      function renderHistory(){
+        const data = readLS(LS_KEYS.history, [])
+        historyEl.innerHTML = ''
+        if(!data.length){
+          historyEl.innerHTML = '<div class="muted">まだ履歴はありません。計算後「この結果を記録する」を押すとここに表示されます。</div>'
+          return
+        }
+        for(const row of data){
+          const div = document.createElement('div')
+          div.className = 'item'
+          const dt = new Date(row.t)
+          const ts = dt.toLocaleString(undefined, {year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})
+          div.innerHTML = `
+            <div><strong>${ts}</strong><br><small>${row.note ?? ''}</small></div>
+            <div>身長: <strong>${row.h}</strong> cm</div>
+            <div>体重: <strong>${row.w}</strong> kg</div>
+            <div>BMI: <strong>${row.bmi}</strong><br><small>${row.cat}</small></div>
+          `
+          div.title = 'クリックでこの値を読み込み'
+          div.addEventListener('click', () => {
+            heightEl.value = row.h
+            weightEl.value = row.w
+            update()
+            window.scrollTo({top:0, behavior:'smooth'})
+          })
+          historyEl.appendChild(div)
+        }
+      }
+
+      function saveCurrent(){
+        const h = parseFloat(heightEl.value)
+        const w = parseFloat(weightEl.value)
+        const bmi = computeBMI(h, w)
+        if(bmi == null || !isFinite(bmi)) return
+        const cls = classify(bmi)
+        const data = readLS(LS_KEYS.history, [])
+        data.unshift({
+          t: Date.now(),
+          h: round(h, 1), w: round(w, 1),
+          bmi: round(bmi, 1), cat: cls.label,
+          note: ''
+        })
+        writeLS(LS_KEYS.history, data.slice(0, 100)) // 最大100件
+        renderHistory()
+      }
+
+      function clearHistory(){
+        if(confirm('履歴をすべて消去しますか？')){
+          writeLS(LS_KEYS.history, [])
+          renderHistory()
+        }
+      }
+
+      function resetInputs(){
+        heightEl.value = ''
+        weightEl.value = ''
+        update()
+      }
+
+      // init
+      const last = readLS(LS_KEYS.last, null)
+      if(last){ heightEl.value = last.h ?? ''; weightEl.value = last.w ?? '' }
+      update()
+      renderHistory()
+
+      heightEl.addEventListener('input', update)
+      weightEl.addEventListener('input', update)
+      saveBtn.addEventListener('click', saveCurrent)
+      clearHistoryBtn.addEventListener('click', clearHistory)
+      resetBtn.addEventListener('click', resetInputs)
+    })()
+  </script>
+</body>
+</html>
